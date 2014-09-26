@@ -1,0 +1,254 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="UTF-8">
+    <!-- Отключаем режим совместимости в IE -->
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <title>Equalizr</title>
+    <style>
+      .equalizer-wrapper {
+          display: inline-block; 
+          margin: 0 20px 20px 0;
+          vertical-align: top;
+      }
+      .equalizer {
+      		/* Немного изменен CSS,
+   					 все внутренние анимируемые элементы
+   					 будут position: absolue
+   				*/
+          overflow: hidden;
+          border:1px solid #ddd;
+          position: relative;
+      }
+      .equalizer.small {
+          width: 100px;
+          height: 100px;
+      }
+      .equalizer.normal {
+          width: 200px;
+          height: 200px;
+      }
+      .equalizer.big {
+          width: 300px;
+          height: 300px;
+      }
+    </style>
+  </head>
+  <body>
+    <h1>Equalizers</h1>
+    <div id="eq_1" class="equalizer-wrapper">
+      <h2>First</h2>
+      <div class="equalizer small"></div>
+    </div>
+    <div id="eq_2" class="equalizer-wrapper">
+      <h2>Second</h2>
+      <div class="equalizer normal"></div>
+    </div>
+    <div id="eq_3" class="equalizer-wrapper">
+      <h2>Third</h2>
+      <div class="equalizer big"></div>
+    </div>
+
+    <script>
+    	// Основная функция
+      function setEqualizer(selector, timeout, colWidth) {
+
+      	// Переменные, которые понадобятся:
+      	// selector - DOM элемент, содержащий столбики
+      	// colWidth - количество столбиков
+      	// colQuantity - ширина столбиков
+      	// elems - масив столбиков
+      	// htmsContent - строка для генерации стобиков
+      	// isTransition - флаг, определяющий поддержку CSS Transition
+        var selector = document.querySelectorAll(selector)[0],
+            colWidth = colWidth || 1,
+            colQuantity = Math.ceil( selector.offsetHeight / colWidth ),
+            elems = null,
+            htmlContent = '';
+            isTransition = (function(){
+              var thisBody = document.body || document.documentElement,
+                  thisStyle = thisBody.style,
+                  support = thisStyle.transition !== undefined || 
+                  thisStyle.WebkitTransition !== undefined || 
+                  thisStyle.MozTransition !== undefined || 
+                  thisStyle.MsTransition !== undefined || 
+                  thisStyle.OTransition !== undefined;
+              return false;
+            }());
+
+        // Создаем столбики
+        for( var i = 0; i < colQuantity; i++ ) {
+          htmlContent += '<span></span>'
+        }
+
+        // Добавляем их разом в контейнер
+        selector.innerHTML += htmlContent;
+
+        // Копируем HTMLCollection в массив elems
+        // Мне нравится способ elems = Array.prototype.slice.call(selector.getElementsByTagName('span'), 0), но не работает в IE8
+        var _elems = selector.getElementsByTagName('span');
+
+        for( var i = 0, elems = []; i < _elems.length; i++ ) {
+        	elems[i] = _elems[i];
+        }
+
+        // Устанавливаем CSS для каждого столбика
+        for( var i = 0; i < elems.length; i++ ) {
+        	// Раньше были inline-block,
+        	// но вроде наиболее быстро
+        	// анимируются при абсолютном позиционировании 
+        	elems[i].style.display = 'block';
+        	elems[i].style.position = 'absolute';
+        	elems[i].style.bottom = 0;
+        	elems[i].style.left = i * colWidth + 'px';
+        	elems[i].style.width = colWidth + 'px'
+        	elems[i].style.background = 'pink';
+        	elems[i].style.borderTop = '2px solid red';
+
+        	// Если есть поддежка CSS3 Transition's
+        	if(isTransition) {
+        		var transitionString = 'height ' + timeout / 1000 + 's linear';
+        		elems[i].style.WebkitTransition = transitionString;
+        		elems[i].style.MozTransition = transitionString;
+        		elems[i].style.MsTransition = transitionString;
+        		elems[i].style.OTransition = transitionString;
+        		elems[i].style.transition = transitionString;
+        	}
+        }
+
+        // Функция для покадровой анимации, принимает объект с параметами:
+        // duration: длительность,
+        // delay: задежка между кардами
+        // step: функция, котороя будет вызываться на каждом кадре
+        // callback: функция, которая будет вызываться при завершении анимации
+        function animate(options) {
+        	var start = new Date;
+        	var timer = setInterval(function() {
+
+        		var progress = (new Date - start) / options.duration;
+        		if (progress > 1) progress = 1;
+
+        		options.step(progress);
+
+        		if( progress == 1) {
+        			options.callback();
+        			clearInterval(timer);
+        		}
+
+        	}, options.delay || 10)
+        }
+
+
+        // Анимирование столбиков вверх
+        function animateUp() {
+
+        	// Создаем и заполняем массив значениями конечных высот каждого столбика
+        	var heightValues = [];
+
+        	for( var i = 0; i < elems.length; i++ ) {
+        		heightValues.push(Math.round(selector.offsetHeight * Math.random()))
+        	}
+
+        	// Если поддерзиваются CSS Transiton's, то просто меняем значение высоты
+        	// на новые из массива высот, браузер сам анимирует переход
+        	if(isTransition) {
+        		for( var i = 0; i < elems.length; i++ ) {
+        			elems[i].style.height = heightValues[i] + 'px';
+        		}
+
+        		// Если функция вызвана первы раз, то она 
+        		// просто установит начальные значения столбиков
+        		if(animateUp.firstRun === undefined) {
+        			animateDown();
+        			animateUp.firstRun = true;
+        			return;
+        		}
+
+        		// Подождем конца анимации и запустим анимацию вниз
+        		setTimeout(function() {
+        			animateDown();
+        		}, timeout)
+        	} else {
+
+        		// Если CSS Transion's не поддерживаются, то используем animate
+        		
+        		// Задаем стартовые значения
+        		var start = selector.offsetHeight / 2;
+        		
+        		// Функция которая запускается при каждом кадре,
+        		// параметр position указывает на какой стадии анимация
+        		// и изменяется от 0 до 1.
+        		function animateStep(position) {
+        			for( var i = 0; i < elems.length; i++ ) {
+        				// Присваиваем на каждом кадре новую высоту, которая считается 
+        				// по формуле start + (end - start) * pos
+        				// start - стартовое значение
+        				// end - конечное значение
+        				// pos - текущая позиция на шкале кадров
+        				elems[i].style.height = start + ((heightValues[i] - start) * position) + 'px';
+        			}
+        		}
+
+        		// Запускаем анимацию
+        		animate({
+        			delay: 15,
+        			duration: timeout,
+        			step: animateStep,
+        			callback: animateDown
+        		})
+
+        	}
+        }
+
+        // Работает аналогично предыдущей функции, 
+        // только стартовые и конечные значения другие,
+        // стартовые значения теперь массив, а конечные середина длинны родителя
+        function animateDown() {
+
+        	var elementsHeight = selector.offsetHeight / 2;
+
+        	if(isTransition) {
+	        	for( var i = 0; i < elems.length; i++ ) {
+	        		elems[i].style.height = elementsHeight + 'px';
+	        	}
+
+	        	setTimeout(function() {
+	        		animateUp();
+	        	}, timeout)
+        	} else {
+
+        		var start = [];
+
+        		for( var i = 0; i < elems.length; i++ ) {
+        			start.push(parseInt(elems[i].style.height));
+        		}
+
+        		function animateStep(position) {
+        			for( var i = 0; i < elems.length; i++ ) {
+        				elems[i].style.height = start[i] + ((elementsHeight - start[i]) * position) + 'px';
+        			}
+        		}
+
+        		animate({
+        			delay: 15,
+        			duration: 1000,
+        			step: animateStep,
+        			callback: animateUp
+        		})
+
+        	}
+        }
+
+        // Запускаем анимацию
+        animateUp();
+       }
+
+      window.onload = function() {
+        setEqualizer('#eq_1 .equalizer', 1000, 2);
+        setEqualizer('#eq_2 .equalizer', 1000, 2);
+        setEqualizer('#eq_3 .equalizer', 1000, 2);
+      }
+    </script>
+
+  </body>
+</html>
